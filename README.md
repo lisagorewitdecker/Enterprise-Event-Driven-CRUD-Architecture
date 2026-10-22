@@ -39,13 +39,14 @@ Key Engineering Decisions
 ---
 
 📦 Kubernetes Workloads
-Service / Pod	K8s Type	Ports	Role / Function
-client-service ClusterIP	90:90	
-Nginx reverse proxy serving the React 18 production UI.
-server-service	ClusterIP	5000:5000	Express REST API for high-throughput ingestion.
-kafka-service	ClusterIP	9092:9092	Apache Kafka message broker (KRaft mode/ZooKeeper-less).
-consumer	Deployment	—	Background worker executing state machine transitions.
-mysql-service	ClusterIP	3306:3306	Relational datastore for orders and order_events.
+
+| Service / Pod | K8s Type | Ports | Role / Function |
+| --- | --- | --- | --- |
+| client-service | ClusterIP | 90:90 | Nginx reverse proxy serving the React 18 production UI. |
+| server-service | ClusterIP | 5000:5000 | Express REST API for high-throughput ingestion. |
+| kafka-service | ClusterIP | 9092:9092 | Apache Kafka message broker (KRaft mode/ZooKeeper-less). |
+| consumer | Deployment | — | Background worker executing state machine transitions. |
+| mysql-service | ClusterIP | 3306:3306 | Relational datastore for orders and order_events. |
 
 ---
 
