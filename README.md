@@ -68,19 +68,24 @@ Prerequisites
 
 1. Deploy the Infrastructure
    Apply the Kubernetes manifests to spin up the cluster resources:
-# Apply all YAML manifests in the k8s directory
-kubectl apply -f k8s/
 
-# Monitor the pods until all read 1/1 Running
-kubectl get pods -w
+   ```sh
+   # Apply all YAML manifests in the k8s directory
+   kubectl apply -f k8s/
+
+   # Monitor the pods until all read 1/1 Running
+   kubectl get pods -w
+   ```
 
 2. Access the Application
    Once all pods are running, open a network tunnel to the frontend client:
-# Forward local port 9090 to the client Nginx service
-kubectl port-forward 
-svc/client-service 9090:90
-Navigate to http://localhost:9090 
-in your browser.
+
+   ```sh
+   # Forward local port 9090 to the client Nginx service
+   kubectl port-forward svc/client-service 9090:90
+   ```
+
+   Navigate to http://localhost:9090 in your browser.
 
 ---
 
