@@ -2,9 +2,12 @@ const express = require("express");
 const { Kafka, logLevel } = require("kafkajs");
 const { randomUUID } = require("node:crypto");
 const { pool, initializeDatabase } = require("./db");
+const { createOrderReadLimit } = require("./orderReadLimit");
 const { TOPIC, applyOrderEvent, startOutboxPublisher } = require("./orderProcessor");
 
 const app = express();
+app.set("trust proxy", 1);
+const orderReadLimit = createOrderReadLimit();
 const kafka = new Kafka({
   clientId: "order-api",
   brokers: (process.env.KAFKA_BROKERS || "localhost:9092").split(","),
@@ -48,7 +51,7 @@ async function waitForTopic() {
 
 app.get("/api/health", (_request, response) => response.json({ status: "ok" }));
 
-app.get("/api/orders", async (_request, response, next) => {
+app.get("/api/orders", orderReadLimit, async (_request, response, next) => {
   try {
     const [orders] = await pool.execute(
       "SELECT id, customer_name AS customerName, items, total, status, created_at AS createdAt, updated_at AS updatedAt FROM orders ORDER BY created_at DESC LIMIT 100",
@@ -59,7 +62,7 @@ app.get("/api/orders", async (_request, response, next) => {
   }
 });
 
-app.get("/api/orders/:id", async (request, response, next) => {
+app.get("/api/orders/:id", orderReadLimit, async (request, response, next) => {
   try {
     const [orders] = await pool.execute(
       "SELECT id, customer_name AS customerName, items, total, status, created_at AS createdAt, updated_at AS updatedAt FROM orders WHERE id = ?",
