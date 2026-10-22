@@ -10,6 +10,7 @@ This project demonstrates a production-grade event-driven architecture that move
 
 Unlike standard CRUD applications where database transactions block HTTP responses, this system implements an event-driven CQRS-lite architecture:
 
+~~~text
 [ React 18 Client Dashboard ]
 │
 ▼  (Nginx Reverse Proxy: port 80 -> :5000)
@@ -26,6 +27,7 @@ Unlike standard CRUD applications where database transactions block HTTP respons
 │
 ▼ (4) On Deliberate Fault (Card Decline)
 [ order-pipeline-dlq ]
+~~~
 
 Key Engineering Decisions
 1. Non-Blocking O(1) Ingestion: The Express API Gateway persists an initial PENDING order, emits an event to the order-pipeline Kafka topic (using the order ID as the partition key), and immediately returns HTTP 202 Accepted.
