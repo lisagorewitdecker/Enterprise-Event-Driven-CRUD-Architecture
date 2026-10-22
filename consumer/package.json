@@ -1,0 +1,13 @@
+{
+  "name": "consumer",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "packageManager": "npm",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "kafkajs": "^2.2.4",
+    "mysql2": "^3.9.7"
+  }
+}
