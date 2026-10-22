@@ -68,7 +68,7 @@ Prerequisites
 * Node.js v20+ (for local testing/building)
 
 1. Deploy the Infrastructure
-   Apply the Kubernetes manifests to spin up the cluster resources:
+   This repository does not include a `k8s/` directory or Kubernetes manifests. Obtain the deployment manifests and their referenced container images from the project maintainer and place the manifests in `k8s/` before continuing; the command below cannot run successfully from this checkout as-is.
 
    ```sh
    # Apply all YAML manifests in the k8s directory
