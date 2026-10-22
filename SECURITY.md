@@ -14,8 +14,10 @@ currently being supported with security updates.
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+Please report vulnerabilities privately through [GitHub's private vulnerability
+reporting form](https://github.com/lisagorewitdecker/React-MySQL-Kafka-Kubernetes-K8s/security/advisories/new).
+Do not report security issues in public issues.
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+We aim to acknowledge reports within 7 days and provide updates at least every
+30 days. If a report is accepted, we will coordinate a fix and disclosure; if it
+is declined, we will explain why.
