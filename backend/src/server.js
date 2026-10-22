@@ -15,6 +15,37 @@ const consumer = kafka.consumer({ groupId: "order-projection" });
 
 app.use(express.json({ limit: "64kb" }));
 
+async function waitForTopic() {
+  const admin = kafka.admin();
+  let lastError;
+  let connected = false;
+
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    try {
+      if (!connected) {
+        await admin.connect();
+        connected = true;
+      }
+      await admin.createTopics({
+        topics: [{ topic: TOPIC, numPartitions: 3, replicationFactor: 1 }],
+        waitForLeaders: true,
+      });
+      const metadata = await admin.fetchTopicMetadata({ topics: [TOPIC] });
+      const partitions = metadata.topics[0]?.partitions || [];
+      if (partitions.length && partitions.every((partition) => partition.leader >= 0)) {
+        await admin.disconnect();
+        return;
+      }
+      throw new Error(`Kafka topic ${TOPIC} has no active partition leaders`);
+    } catch (error) {
+      lastError = error;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+
+  throw lastError;
+}
+
 app.get("/api/health", (_request, response) => response.json({ status: "ok" }));
 
 app.get("/api/orders", async (_request, response, next) => {
@@ -56,6 +87,8 @@ app.post("/api/orders", async (request, response, next) => {
     }
     for (const item of items) {
       if (
+        !item ||
+        typeof item !== "object" ||
         typeof item.name !== "string" ||
         !item.name.trim() ||
         item.name.trim().length > 120 ||
@@ -77,6 +110,9 @@ app.post("/api/orders", async (request, response, next) => {
     const total = Math.round(
       orderItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0) * 100,
     ) / 100;
+    if (total > 99_999_999.99) {
+      return response.status(400).json({ error: "Order total exceeds the supported limit" });
+    }
     const orderId = randomUUID();
     const event = {
       eventId: randomUUID(),
@@ -99,11 +135,15 @@ app.post("/api/orders", async (request, response, next) => {
 
 app.use((error, _request, response, _next) => {
   console.error(error);
-  response.status(500).json({ error: "Internal server error" });
+  const status = Number.isInteger(error.status) && error.status >= 400 && error.status < 500
+    ? error.status
+    : 500;
+  response.status(status).json({ error: status === 400 ? "Invalid request" : "Internal server error" });
 });
 
 async function start() {
   await initializeDatabase();
+  await waitForTopic();
   await producer.connect();
   await consumer.connect();
   await consumer.subscribe({ topic: TOPIC, fromBeginning: false });
