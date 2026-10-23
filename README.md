@@ -10,6 +10,7 @@ This project demonstrates a production-grade event-driven architecture that move
 
 Unlike standard CRUD applications where database transactions block HTTP responses, this system implements an event-driven CQRS-lite architecture:
 
+~~~text
 [ React 18 Client Dashboard ]
 │
 ▼  (Nginx Reverse Proxy: port 80 -> :5000)
@@ -26,6 +27,7 @@ Unlike standard CRUD applications where database transactions block HTTP respons
 │
 ▼ (4) On Deliberate Fault (Card Decline)
 [ order-pipeline-dlq ]
+~~~
 
 Key Engineering Decisions
 1. Non-Blocking O(1) Ingestion: The Express API Gateway persists an initial PENDING order, emits an event to the order-pipeline Kafka topic (using the order ID as the partition key), and immediately returns HTTP 202 Accepted.
@@ -44,6 +46,14 @@ server-service	ClusterIP	5000:5000	Express REST API for high-throughput ingestio
 kafka-service	ClusterIP	9092:9092	Apache Kafka message broker (KRaft mode/ZooKeeper-less).
 consumer	Deployment	—	Background worker executing state machine transitions.
 mysql-service	ClusterIP	3306:3306	Relational datastore for orders and order_events.
+
+| Service / Pod | K8s Type | Ports | Role / Function |
+| --- | --- | --- | --- |
+| client-service | ClusterIP | 90:90 | Nginx reverse proxy serving the React 18 production UI. |
+| server-service | ClusterIP | 5000:5000 | Express REST API for high-throughput ingestion. |
+| kafka-service | ClusterIP | 9092:9092 | Apache Kafka message broker (KRaft mode/ZooKeeper-less). |
+| consumer | Deployment | — | Background worker executing state machine transitions. |
+| mysql-service | ClusterIP | 3306:3306 | Relational datastore for orders and order_events. |
 
 ---
 
@@ -79,6 +89,25 @@ kubectl port-forward
 svc/client-service 9090:90
 Navigate to http://localhost:9090 
 in your browser.
+   This repository does not include a `k8s/` directory or Kubernetes manifests. Obtain the deployment manifests and their referenced container images from the project maintainer and place the manifests in `k8s/` before continuing; the command below cannot run successfully from this checkout as-is.
+
+   ```sh
+   # Apply all YAML manifests in the k8s directory
+   kubectl apply -f k8s/
+
+   # Monitor the pods until all read 1/1 Running
+   kubectl get pods -w
+   ```
+
+2. Access the Application
+   Once all pods are running, open a network tunnel to the frontend client:
+
+   ```sh
+   # Forward local port 9090 to the client Nginx service
+   kubectl port-forward svc/client-service 9090:90
+   ```
+
+   Navigate to http://localhost:9090 in your browser.
 
 ---
 
@@ -93,4 +122,5 @@ in your browser.
 ---
 
 📝 License
+This project is open-source and available under the MIT License. Developed by Lisa M. Gorewit-Decker
 This project is open-source and available under the MIT License. Developed by Lisa M. Gorewit-Decker
