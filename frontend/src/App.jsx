@@ -61,7 +61,9 @@ export default function App() {
       setItemName("");
       setQuantity(1);
       setUnitPrice("");
-      await refreshOrders();
+      await refreshOrders().catch(() => {
+        // A read failure does not invalidate the accepted order; polling will retry.
+      });
     } catch (error) {
       setMessage(error.message);
     } finally {
