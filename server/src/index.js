@@ -1,11 +1,19 @@
 const express = require('express');
 const cors = require('cors');
+const { rateLimit } = require('express-rate-limit');
 const mysql = require('mysql2/promise');
 const { Kafka, Partitioners } = require('kafkajs');
 
 const app = express();
+app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json());
+app.use('/api', rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+}));
 
 const PORT = process.env.PORT || 5000;
 

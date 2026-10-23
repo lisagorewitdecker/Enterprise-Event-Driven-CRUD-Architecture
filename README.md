@@ -1,127 +1,65 @@
-# 🚀 Enterprise, Event-Driven Order Processing System
+# Asynchronous Order Lifecycle
 
-An asynchronous, distributed order life-cyles system built with **React 18**, **Node.js (Express)**, **Apache Kafka (KRaft)**, and **MySQL 8**. The application is fully containerized with Docker and orchestrated on Kubernetes.
+A small CQRS-lite reference application: an Express command/query API accepts orders into Kafka, a consumer advances each order through deterministic lifecycle events, and MySQL stores the read model and event audit. The React 18 dashboard polls the read model for live status updates.
 
-This project demonstrates a production-grade event-driven architecture that moves away from synchronous CRUD bottlenecks in favor of CQRS-lite principles, decoupled ingestion, and deterministic state transitions.
+## Run locally with Docker
 
----
+Docker Compose starts Kafka in single-node KRaft mode, MySQL 8, the API, and the React dashboard:
 
-## 🏛 Architecture & Design Patterns
+```sh
+docker compose up --build
+```
 
-Unlike standard CRUD applications where database transactions block HTTP responses, this system implements an event-driven CQRS-lite architecture:
+Open [http://localhost:8080](http://localhost:8080). The Compose database credentials are for local development only; use managed secrets and secure Kafka/MySQL configuration outside a local sandbox.
 
-~~~text
-[ React 18 Client Dashboard ]
-│
-▼  (Nginx Reverse Proxy: port 80 -> :5000)
-[ Express API Gateway ]
-│                │
-│ (1) Write      ▼ (2) Dispatches Event
-│     PENDING          to Kafka Partition
-▼                      ▼
-[ MySQL 8 ]        [ Apache Kafka (KRaft) ]
-(appdb)                    │
-▲                      ▼
-│ (3) Idempotent State Updates & Audit Log
-└──────────────[ Node.js Consumer Worker ]
-│
-▼ (4) On Deliberate Fault (Card Decline)
-[ order-pipeline-dlq ]
-~~~
+Order creation returns `202 Accepted` as soon as the event is written to Kafka. The Kafka consumer updates the MySQL read model and transactionally records the next lifecycle event in an outbox. The outbox publisher emits those events back to Kafka, and event IDs make consumer retries idempotent.
 
-Key Engineering Decisions
-1. Non-Blocking O(1) Ingestion: The Express API Gateway persists an initial PENDING order, emits an event to the order-pipeline Kafka topic (using the order ID as the partition key), and immediately returns HTTP 202 Accepted.
-2. Deterministic State Machine: A background worker group consumes partitions and sequentially transitions states (PENDING ➔ VALIDATING ➔ PAYMENT_PROCESSED ➔ FULFILLED).
-3. Idempotent Consumers: State updates apply conditional SQL statements (WHERE id = ? AND status = ?), guaranteeing that duplicate Kafka message deliveries during rebalances or pod restarts never trigger double-processing.
-4. Dead-Letter Queue (DLQ) & Fault Tolerance: Unrecoverable transactions (e.g., payment failure simulations) transition to FAILED and are routed to the order-pipeline-dlq topic for dlife cycler processing without blocking the main event stream.
-5. Dual Data Model & Audit Ledger: High-speed operational queries read from the mutable orders table, while an append-only order_events table captures an immutable timeline of every lifecycle hop.
+```text
+PENDING → CONFIRMED → PROCESSING → SHIPPED → DELIVERED
+```
 
----
+Transitions are defined in `backend/src/domain/orderLifecycle.js`. Events are keyed by order ID so all events for an order use the same Kafka partition. Orders and their event history are stored in MySQL.
 
-📦 Kubernetes Workloads
-Service / Pod	K8s Type	Ports	Role / Function
-client-service ClusterIP	90:90	
-Nginx reverse proxy serving the React 18 production UI.
-server-service	ClusterIP	5000:5000	Express REST API for high-throughput ingestion.
-kafka-service	ClusterIP	9092:9092	Apache Kafka message broker (KRaft mode/ZooKeeper-less).
-consumer	Deployment	—	Background worker executing state machine transitions.
-mysql-service	ClusterIP	3306:3306	Relational datastore for orders and order_events.
+## API
 
-| Service / Pod | K8s Type | Ports | Role / Function |
-| --- | --- | --- | --- |
-| client-service | ClusterIP | 90:90 | Nginx reverse proxy serving the React 18 production UI. |
-| server-service | ClusterIP | 5000:5000 | Express REST API for high-throughput ingestion. |
-| kafka-service | ClusterIP | 9092:9092 | Apache Kafka message broker (KRaft mode/ZooKeeper-less). |
-| consumer | Deployment | — | Background worker executing state machine transitions. |
-| mysql-service | ClusterIP | 3306:3306 | Relational datastore for orders and order_events. |
+| Method | Path | Behavior |
+| --- | --- | --- |
+| `POST` | `/api/orders` | Validate and queue an order; returns `202` with its ID |
+| `GET` | `/api/orders` | Read the latest 100 orders from the MySQL projection |
+| `GET` | `/api/orders/:id` | Read one order by ID |
+| `GET` | `/api/health` | Liveness endpoint |
 
----
+Example request:
 
-🛠 Tech Stack
+```json
+{
+  "customerName": "Ada Lovelace",
+  "items": [{ "name": "Notebook", "quantity": 2, "unitPrice": 8.5 }]
+}
+```
 
-* Frontend: React 18, Vite, standard CSS.
-* Backend: Node.js, Express, KafkaJS, mysql2.
-* Database: MySQL 8.0.
-* Messaging: Apache Kafka (KRaft mode).
-* Infrastructure: Docker, Kubernetes (K8s), Nginx.
+## Development
 
----
+Requires Node.js 24 and npm:
 
-🚀 Local Deployment & Quick Start
+```sh
+npm install
+npm test
+npm run build
+npm run dev:backend
+npm run dev:frontend
+```
 
-Prerequisites
-* Docker Desktop (with Kubernetes enabled) or Minikube
-* kubectl CLI installed
-* Node.js v20+ (for local testing/building)
+The API expects MySQL and Kafka at `MYSQL_HOST` and `KAFKA_BROKERS`; defaults target local services. To run the complete UI/API/dependency stack, use Docker Compose.
 
-1. Deploy the Infrastructure
-   Apply the Kubernetes manifests to spin up the cluster resources:
-# Apply all YAML manifests in the k8s directory
-kubectl apply -f k8s/
+## Kubernetes
 
-# Monitor the pods until all read 1/1 Running
-kubectl get pods -w
+Build and load the images into your cluster, then apply the single-node reference manifests:
 
-2. Access the Application
-   Once all pods are running, open a network tunnel to the frontend client:
-# Forward local port 9090 to the client Nginx service
-~~~sh
-kubectl port-forward svc/client-service 9090:90
-~~~
-Navigate to http://localhost:9090 
-in your browser.
-   This repository does not include a `k8s/` directory or Kubernetes manifests. Obtain the deployment manifests and their referenced container images from the project maintainer and place the manifests in `k8s/` before continuing; the command below cannot run successfully from this checkout as-is.
+```sh
+docker build -f backend/Dockerfile -t order-api:local .
+docker build -f frontend/Dockerfile -t order-dashboard:local .
+kubectl apply -f k8s/order-platform.yaml
+```
 
-   ```sh
-   # Apply all YAML manifests in the k8s directory
-   kubectl apply -f k8s/
-
-   # Monitor the pods until all read 1/1 Running
-   kubectl get pods -w
-   ```
-
-2. Access the Application
-   Once all pods are running, open a network tunnel to the frontend client:
-
-   ```sh
-   # Forward local port 9090 to the client Nginx service
-   kubectl port-forward svc/client-service 9090:90
-   ```
-
-   Navigate to http://localhost:9090 in your browser.
-
----
-
-🧪 Testing the Pipeline (Usage)
-
-1. Happy Path: Submit an order via the manual form. Watch the real-time UI reflect the state change as the Kafka consumer advances the order to FULFILLED.
-2. Stress / Load Testing: Click ⚡ Simulate Burst (5x) to dispatch a rapid batch of orders.
-3. Dead-Letter Queue (DLQ) Injection: Check the "Simulate payment failure" box before submitting. The background worker will intercept the failure, mark the order FAILED, save the failure reason, and route the payload to the DLQ topic.
-4. Immutable Audit Trail: Click Audit on any order card to open the lifecycle ledger modal. This queries the order_events table to show the exact timestamped transitions (e.g., PENDING ➔ VALIDATING ➔ PAYMENT_PROCESSED).
-5. Administrative Actions: Use the Edit, Cancel, and Delete buttons to test API-driven database updates and graceful lifecycle interruptions.
-
----
-
-📝 License
-This project is open-source and available under the MIT License. Developed by Lisa M. Gorewit-Decker
-This project is open-source and available under the MIT License. Developed by Lisa M. Gorewit-Decker
+Load both images into your cluster before applying the manifests (for example, use `kind load docker-image` with kind). The frontend is exposed through NodePort `30080`. Replace both database passwords in the example Kubernetes Secret before use. The single-replica Kafka and MySQL StatefulSets are for demonstration, not a highly available production deployment.
