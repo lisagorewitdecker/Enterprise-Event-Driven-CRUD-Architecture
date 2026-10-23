@@ -26,7 +26,9 @@ export default function App() {
         const data = await response.json();
         if (active) {
           setOrders(data);
-          setMessage("");
+          setMessage((current) =>
+            current === "The order service is unavailable. Retrying…" ? "" : current,
+          );
         }
       } catch {
         if (active) setMessage("The order service is unavailable. Retrying…");
