@@ -67,4 +67,3 @@ index 1111111..2222222 100644
  });
 
  app.get('/api/orders', async (req, res) => {
-@@ -69,6 +103,12 @@ app.post('/api/orders', async (req, res) => {*
