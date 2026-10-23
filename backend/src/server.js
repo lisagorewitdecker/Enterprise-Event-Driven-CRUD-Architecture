@@ -149,7 +149,7 @@ async function start() {
   await waitForTopic();
   await producer.connect();
   await consumer.connect();
-  await consumer.subscribe({ topic: TOPIC, fromBeginning: false });
+  await consumer.subscribe({ topic: TOPIC, fromBeginning: true });
   await consumer.run({
     eachMessage: async ({ message }) => {
       const event = JSON.parse(message.value.toString());
