@@ -39,6 +39,13 @@ Key Engineering Decisions
 ---
 
 📦 Kubernetes Workloads
+Service / Pod	K8s Type	Ports	Role / Function
+client-service ClusterIP	90:90	
+Nginx reverse proxy serving the React 18 production UI.
+server-service	ClusterIP	5000:5000	Express REST API for high-throughput ingestion.
+kafka-service	ClusterIP	9092:9092	Apache Kafka message broker (KRaft mode/ZooKeeper-less).
+consumer	Deployment	—	Background worker executing state machine transitions.
+mysql-service	ClusterIP	3306:3306	Relational datastore for orders and order_events.
 
 | Service / Pod | K8s Type | Ports | Role / Function |
 | --- | --- | --- | --- |
@@ -68,6 +75,21 @@ Prerequisites
 * Node.js v20+ (for local testing/building)
 
 1. Deploy the Infrastructure
+   Apply the Kubernetes manifests to spin up the cluster resources:
+# Apply all YAML manifests in the k8s directory
+kubectl apply -f k8s/
+
+# Monitor the pods until all read 1/1 Running
+kubectl get pods -w
+
+2. Access the Application
+   Once all pods are running, open a network tunnel to the frontend client:
+# Forward local port 9090 to the client Nginx service
+~~~sh
+kubectl port-forward svc/client-service 9090:90
+~~~
+Navigate to http://localhost:9090 
+in your browser.
    This repository does not include a `k8s/` directory or Kubernetes manifests. Obtain the deployment manifests and their referenced container images from the project maintainer and place the manifests in `k8s/` before continuing; the command below cannot run successfully from this checkout as-is.
 
    ```sh
@@ -101,4 +123,5 @@ Prerequisites
 ---
 
 📝 License
+This project is open-source and available under the MIT License. Developed by Lisa M. Gorewit-Decker
 This project is open-source and available under the MIT License. Developed by Lisa M. Gorewit-Decker
