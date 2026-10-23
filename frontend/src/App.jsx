@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const currency = new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" });
 
@@ -10,38 +10,37 @@ export default function App() {
   const [unitPrice, setUnitPrice] = useState("");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const ordersRequestSequence = useRef(0);
 
-  const refreshOrders = useCallback(async () => {
-    const response = await fetch("/api/orders");
-    if (!response.ok) throw new Error("Could not load orders");
-    setOrders(await response.json());
+  const refreshOrders = useCallback(async (showUnavailable = false) => {
+    const requestSequence = ++ordersRequestSequence.current;
+    try {
+      const response = await fetch("/api/orders");
+      if (!response.ok) throw new Error("Could not load orders");
+      const data = await response.json();
+      if (requestSequence === ordersRequestSequence.current) {
+        setOrders(data);
+        setMessage((current) =>
+          current === "The order service is unavailable. Retrying…" ? "" : current,
+        );
+      }
+    } catch (error) {
+      if (showUnavailable && requestSequence === ordersRequestSequence.current) {
+        setMessage("The order service is unavailable. Retrying…");
+      }
+      throw error;
+    }
   }, []);
 
   useEffect(() => {
-    let active = true;
-    const refresh = async () => {
-      try {
-        const response = await fetch("/api/orders");
-        if (!response.ok) throw new Error("Could not load orders");
-        const data = await response.json();
-        if (active) {
-          setOrders(data);
-          setMessage((current) =>
-            current === "The order service is unavailable. Retrying…" ? "" : current,
-          );
-        }
-      } catch {
-        if (active) setMessage("The order service is unavailable. Retrying…");
-      }
-    };
-
+    const refresh = () => refreshOrders(true).catch(() => {});
     refresh();
     const interval = window.setInterval(refresh, 1500);
     return () => {
-      active = false;
+      ordersRequestSequence.current += 1;
       window.clearInterval(interval);
     };
-  }, []);
+  }, [refreshOrders]);
 
   async function submitOrder(event) {
     event.preventDefault();
