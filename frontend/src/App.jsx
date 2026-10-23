@@ -33,12 +33,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const refresh = () => refreshOrders(true).catch(() => {});
+    let stopped = false;
+    let timeout;
+    const refresh = async () => {
+      await refreshOrders(true).catch(() => {});
+      if (!stopped) timeout = window.setTimeout(refresh, 1500);
+    };
     refresh();
-    const interval = window.setInterval(refresh, 1500);
     return () => {
+      stopped = true;
       ordersRequestSequence.current += 1;
-      window.clearInterval(interval);
+      window.clearTimeout(timeout);
     };
   }, [refreshOrders]);
 
