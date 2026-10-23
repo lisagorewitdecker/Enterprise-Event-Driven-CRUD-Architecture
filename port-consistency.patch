@@ -1,0 +1,57 @@
+diff --git a/client/nginx.conf b/client/nginx.conf
+index 0000000..0000000 100644
+--- a/client/nginx.conf
++++ b/client/nginx.conf
+@@ -1,5 +1,5 @@
+ server {
+-    listen 80;
++    listen 9090;
+     server_name localhost;
+
+     location / {
+diff --git a/client/Dockerfile b/client/Dockerfile
+index 0000000..0000000 100644
+--- a/client/Dockerfile
++++ b/client/Dockerfile
+@@ -1,5 +1,5 @@
+ FROM nginx:alpine
+ COPY dist /usr/share/nginx/html
+ COPY nginx.conf /etc/nginx/conf.d/default.conf
+-EXPOSE 80
++EXPOSE 9090
+ CMD ["nginx", "-g", "daemon off;"]
+diff --git a/k8s/05-client.yaml b/k8s/05-client.yaml
+index 0000000..0000000 100644
+--- a/k8s/05-client.yaml
++++ b/k8s/05-client.yaml
+@@ -14,16 +14,16 @@ spec:
+           image: client:latest
+           imagePullPolicy: IfNotPresent
+           ports:
+-            - containerPort: 80
++            - containerPort: 9090
+           readinessProbe:
+             httpGet:
+               path: /
+-              port: 90
++              port: 9090
+             initialDelaySeconds: 5
+             periodSeconds: 10
+           livenessProbe:
+             httpGet:
+               path: /
+-              port: 90
++              port: 9090
+             initialDelaySeconds: 20
+             periodSeconds: 20
+           resources:
+@@ -42,7 +42,7 @@ spec:
+   selector:
+     app: client
+   ports:
+     - protocol: TCP
+-      port: 90
+-      targetPort: 90
++      port: 9090
++      targetPort: 9090
+   type: ClusterIP
