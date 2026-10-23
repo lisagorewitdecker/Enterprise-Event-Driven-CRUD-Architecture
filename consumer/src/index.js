@@ -72,10 +72,11 @@ async function processOrder(order) {
         console.warn(`[DLQ TRIGGER] Simulating payment decline for ${orderNumber}`);
         const failureReason = 'Payment Gateway Declined: Card issuer reported insufficient liquidity';
 
-        await pool.query(
-            'UPDATE orders SET status = "FAILED", failure_reason = ? WHERE id = ?',
+        const [failureResult] = await pool.query(
+            'UPDATE orders SET status = "FAILED", failure_reason = ? WHERE id = ? AND status = "VALIDATING"',
             [failureReason, orderId]
         );
+        if (failureResult.affectedRows === 0) return;
         await pool.query(
             'INSERT INTO order_events (order_id, from_status, to_status, event_note) VALUES (?, "VALIDATING", "FAILED", ?)',
             [orderId, failureReason]
