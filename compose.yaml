@@ -34,7 +34,7 @@ services:
       MYSQL_PASSWORD: orderpassword
       MYSQL_ROOT_PASSWORD: localrootpassword
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uorders -porderpassword"]
+      test: ["CMD-SHELL", "mysql --protocol=TCP -h127.0.0.1 -uorders -porderpassword orders -e 'SELECT 1'"]
       interval: 5s
       timeout: 5s
       retries: 20
