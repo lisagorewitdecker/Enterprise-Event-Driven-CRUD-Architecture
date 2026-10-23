@@ -114,7 +114,8 @@ app.post('/api/orders/:id/cancel', async (req, res) => {
       return res.status(400).json({ error: `Cannot cancel order in ${currentStatus} status` });
     }
 
-    await pool.query('UPDATE orders SET status = "CANCELLED", failure_reason = "Cancelled by user" WHERE id = ?', [id]);
+    const [cancelResult] = await pool.query('UPDATE orders SET status = "CANCELLED", failure_reason = "Cancelled by user" WHERE id = ? AND status = ?', [id, currentStatus]);
+    if (cancelResult.affectedRows === 0) return res.status(409).json({ error: 'Order status changed; refresh before cancelling' });
     await pool.query('INSERT INTO order_events (order_id, from_status, to_status, event_note) VALUES (?, ?, "CANCELLED", "Order cancelled by user")', [id, currentStatus]);
 
     res.json({ message: 'Order cancelled', id });
