@@ -26,7 +26,9 @@ export default function App() {
         const data = await response.json();
         if (active) {
           setOrders(data);
-          setMessage("");
+          setMessage((current) =>
+            current === "The order service is unavailable. Retrying…" ? "" : current,
+          );
         }
       } catch {
         if (active) setMessage("The order service is unavailable. Retrying…");
@@ -61,7 +63,9 @@ export default function App() {
       setItemName("");
       setQuantity(1);
       setUnitPrice("");
-      await refreshOrders();
+      await refreshOrders().catch(() => {
+        // A read failure does not invalidate the accepted order; polling will retry.
+      });
     } catch (error) {
       setMessage(error.message);
     } finally {
