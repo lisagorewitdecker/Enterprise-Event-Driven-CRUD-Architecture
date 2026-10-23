@@ -25,7 +25,7 @@ metadata:
 spec:
   clusterIP: None
   selector:
-    app: kafka
+    app: order-platform-kafka
   ports:
     - name: broker
       port: 9092
@@ -43,11 +43,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: kafka
+      app: order-platform-kafka
   template:
     metadata:
       labels:
-        app: kafka
+        app: order-platform-kafka
     spec:
       securityContext:
         fsGroup: 1000
