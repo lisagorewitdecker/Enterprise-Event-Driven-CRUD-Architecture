@@ -162,7 +162,9 @@ async function start() {
   });
 
   async function shutdown() {
-    server.close();
+    await new Promise((resolve, reject) => {
+      server.close((error) => error ? reject(error) : resolve());
+    });
     await stopOutbox();
     await consumer.disconnect();
     await producer.disconnect();
