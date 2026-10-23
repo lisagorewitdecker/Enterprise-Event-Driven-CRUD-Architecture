@@ -143,6 +143,7 @@ async function startConsumer() {
                     await processOrder(order);
                 } catch (err) {
                     console.error(`Error processing message at partition ${partition}:`, err);
+                    throw err;
                 }
             },
         });
