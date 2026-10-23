@@ -132,7 +132,7 @@ async function startConsumer() {
         await producer.connect();
         console.log('Kafka Consumer and DLQ Producer connected.');
 
-        await consumer.subscribe({ topic: 'order-pipeline', fromBeginning: false });
+        await consumer.subscribe({ topic: 'order-pipeline', fromBeginning: true });
         console.log('Subscribed to order-pipeline topic. Waiting for events...');
 
         await consumer.run({
