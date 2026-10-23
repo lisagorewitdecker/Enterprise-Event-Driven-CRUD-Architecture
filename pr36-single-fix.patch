@@ -10,7 +10,7 @@ index 1111111..2222222 100644
  const mysql = require('mysql2/promise');
  const { Kafka, Partitioners } = require('kafkajs');
 
-@@ -36,18 +37,51 @@ const producer = kafka.producer({
+@@ -36,22 +37,46 @@ const producer = kafka.producer({
    createPartitioner: Partitioners.DefaultPartitioner,
  });
 
