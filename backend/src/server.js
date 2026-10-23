@@ -4,6 +4,7 @@ const { randomUUID } = require("node:crypto");
 const { pool, initializeDatabase } = require("./db");
 const { createOrderReadLimit } = require("./orderReadLimit");
 const { TOPIC, applyOrderEvent, startOutboxPublisher } = require("./orderProcessor");
+const { retryTransientDatabaseError } = require("./databaseRetry");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -153,7 +154,7 @@ async function start() {
   await consumer.run({
     eachMessage: async ({ message }) => {
       const event = JSON.parse(message.value.toString());
-      await applyOrderEvent(pool, event);
+      await retryTransientDatabaseError(() => applyOrderEvent(pool, event));
     },
   });
   const stopOutbox = startOutboxPublisher(pool, producer);
