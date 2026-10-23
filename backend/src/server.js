@@ -152,9 +152,13 @@ async function start() {
   await consumer.connect();
   await consumer.subscribe({ topic: TOPIC, fromBeginning: true });
   await consumer.run({
-    eachMessage: async ({ message }) => {
+    eachMessage: async ({ message, heartbeat }) => {
       const event = JSON.parse(message.value.toString());
-      await retryTransientDatabaseError(() => applyOrderEvent(pool, event));
+      await retryTransientDatabaseError(() => applyOrderEvent(pool, event), async (delay) => {
+        await heartbeat();
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        await heartbeat();
+      });
     },
   });
   const stopOutbox = startOutboxPublisher(pool, producer);
