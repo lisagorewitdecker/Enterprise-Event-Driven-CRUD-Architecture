@@ -153,7 +153,7 @@ spec:
                   key: MYSQL_ROOT_PASSWORD
           readinessProbe:
             exec:
-              command: ["/bin/sh", "-c", "mysqladmin ping -h localhost -u$MYSQL_USER -p$MYSQL_PASSWORD"]
+              command: ["/bin/sh", "-c", "mysql --protocol=TCP -h127.0.0.1 -u\"$MYSQL_USER\" -p\"$MYSQL_PASSWORD\" \"$MYSQL_DATABASE\" -e 'SELECT 1'"]
             initialDelaySeconds: 15
             periodSeconds: 5
           volumeMounts:
