@@ -106,7 +106,7 @@ metadata:
   name: mysql
 spec:
   selector:
-    app: mysql
+    app: order-platform-mysql
   ports:
     - name: mysql
       port: 3306
@@ -121,11 +121,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: mysql
+      app: order-platform-mysql
   template:
     metadata:
       labels:
-        app: mysql
+        app: order-platform-mysql
     spec:
       containers:
         - name: mysql
