@@ -15,7 +15,7 @@ currently being supported with security updates.
 ## Reporting a Vulnerability
 
 Please report vulnerabilities privately through [GitHub's private vulnerability
-reporting form](https://github.com/lisagorewitdecker/React-MySQL-Kafka-Kubernetes-K8s/security/advisories/new).
+reporting form](https://github.com/lisagorewitdecker/Enterprise-Event-Driven-CRUD-Architecture/security/advisories/new).
 Do not report security issues in public issues.
 
 We aim to acknowledge reports within 7 days and provide updates at least every
