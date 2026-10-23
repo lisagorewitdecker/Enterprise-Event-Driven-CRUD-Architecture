@@ -17,7 +17,7 @@ const kafka = new Kafka({
     clientId: 'order-consumer-worker',
     brokers: [process.env.KAFKA_BROKER || 'kafka-service:9092'],
     retry: {
-        initialRetryTime: 300,a
+        initialRetryTime: 300,
         retries: 10,
     },
 });
