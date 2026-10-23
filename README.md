@@ -85,8 +85,9 @@ kubectl get pods -w
 2. Access the Application
    Once all pods are running, open a network tunnel to the frontend client:
 # Forward local port 9090 to the client Nginx service
-kubectl port-forward 
-svc/client-service 9090:90
+~~~sh
+kubectl port-forward svc/client-service 9090:90
+~~~
 Navigate to http://localhost:9090 
 in your browser.
    This repository does not include a `k8s/` directory or Kubernetes manifests. Obtain the deployment manifests and their referenced container images from the project maintainer and place the manifests in `k8s/` before continuing; the command below cannot run successfully from this checkout as-is.
