@@ -30,6 +30,37 @@ const producer = kafka.producer({
 // Sleep helper for simulated processing stages
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+async function transitionOrder(orderId, fromStatus, toStatus, eventNote, failureReason = null) {
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+        const [result] = failureReason
+            ? await connection.query(
+                'UPDATE orders SET status = ?, failure_reason = ? WHERE id = ? AND status = ?',
+                [toStatus, failureReason, orderId, fromStatus]
+            )
+            : await connection.query(
+                'UPDATE orders SET status = ? WHERE id = ? AND status = ?',
+                [toStatus, orderId, fromStatus]
+            );
+
+        if (result.affectedRows > 0) {
+            await connection.query(
+                'INSERT INTO order_events (order_id, from_status, to_status, event_note) VALUES (?, ?, ?, ?)',
+                [orderId, fromStatus, toStatus, eventNote]
+            );
+        }
+
+        await connection.commit();
+        return result.affectedRows > 0;
+    } catch (err) {
+        await connection.rollback();
+        throw err;
+    } finally {
+        connection.release();
+    }
+}
+
 // Helper: Ensure MySQL connectivity with retry logic
 async function waitForDatabase() {
     let retries = 10;
@@ -57,30 +88,30 @@ async function processOrder(order) {
 
     // Stage 1: VALIDATING
     console.log(`[STAGE 1] Validating inventory & parameters for ${orderNumber}`);
-    await pool.query(
-        'UPDATE orders SET status = "VALIDATING" WHERE id = ? AND status = "PENDING"',
-        [orderId]
+    const validationTransitioned = await transitionOrder(
+        orderId,
+        'PENDING',
+        'VALIDATING',
+        'Inventory verified in primary distribution center'
     );
-    await pool.query(
-        'INSERT INTO order_events (order_id, from_status, to_status, event_note) VALUES (?, "PENDING", "VALIDATING", "Inventory verified in primary distribution center")',
-        [orderId]
-    );
-    await sleep(1500);
+    if (validationTransitioned) await sleep(1500);
 
     // Check Fault Injection / Simulate Failure flag
     if (order.simulate_failure) {
         console.warn(`[DLQ TRIGGER] Simulating payment decline for ${orderNumber}`);
         const failureReason = 'Payment Gateway Declined: Card issuer reported insufficient liquidity';
 
-        const [failureResult] = await pool.query(
-            'UPDATE orders SET status = "FAILED", failure_reason = ? WHERE id = ? AND status = "VALIDATING"',
-            [failureReason, orderId]
+        const failureTransitioned = await transitionOrder(
+            orderId,
+            'VALIDATING',
+            'FAILED',
+            failureReason,
+            failureReason
         );
-        if (failureResult.affectedRows === 0) return;
-        await pool.query(
-            'INSERT INTO order_events (order_id, from_status, to_status, event_note) VALUES (?, "VALIDATING", "FAILED", ?)',
-            [orderId, failureReason]
-        );
+        if (!failureTransitioned) {
+            const [rows] = await pool.query('SELECT status FROM orders WHERE id = ?', [orderId]);
+            if (rows.length === 0 || rows[0].status !== 'FAILED') return;
+        }
 
         // Route message to Dead-Letter Queue (DLQ)
         await producer.send({
@@ -100,27 +131,25 @@ async function processOrder(order) {
 
     // Stage 2: PAYMENT_PROCESSED
     console.log(`[STAGE 2] Capturing payment ledger for ${orderNumber}`);
-    await pool.query(
-        'UPDATE orders SET status = "PAYMENT_PROCESSED" WHERE id = ? AND status = "VALIDATING"',
-        [orderId]
+    const paymentTransitioned = await transitionOrder(
+        orderId,
+        'VALIDATING',
+        'PAYMENT_PROCESSED',
+        'Payment settled via payment gateway'
     );
-    await pool.query(
-        'INSERT INTO order_events (order_id, from_status, to_status, event_note) VALUES (?, "VALIDATING", "PAYMENT_PROCESSED", "Payment settled via payment gateway")',
-        [orderId]
-    );
-    await sleep(1500);
+    if (paymentTransitioned) await sleep(1500);
 
     // Stage 3: FULFILLED
     console.log(`[STAGE 3] Dispatching fulfillment for ${orderNumber}`);
-    await pool.query(
-        'UPDATE orders SET status = "FULFILLED" WHERE id = ? AND status = "PAYMENT_PROCESSED"',
-        [orderId]
+    const fulfillmentTransitioned = await transitionOrder(
+        orderId,
+        'PAYMENT_PROCESSED',
+        'FULFILLED',
+        'Airbill printed and order staged for carrier dispatch'
     );
-    await pool.query(
-        'INSERT INTO order_events (order_id, from_status, to_status, event_note) VALUES (?, "PAYMENT_PROCESSED", "FULFILLED", "Airbill printed and order staged for carrier dispatch")',
-        [orderId]
-    );
-    console.log(`[COMPLETED] Order ${orderNumber} successfully fulfilled.\n`);
+    if (fulfillmentTransitioned) {
+        console.log(`[COMPLETED] Order ${orderNumber} successfully fulfilled.\n`);
+    }
 }
 
 // 4. Main Entrypoint Function
