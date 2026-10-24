@@ -83,7 +83,7 @@ kubectl exec -i deployment/mysql -- sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD"
 Port-forward the client service to your local machine:
 
 ### Bash
-kubectl port-forward svc/client-service 9090:80
+kubectl port-forward svc/client-service 9090:90
 Open your browser and navigate to http://localhost:9090
 
 ## 🧪 Usage Instructions

@@ -21,13 +21,13 @@ spec:
           readinessProbe:
             httpGet:
               path: /
-              port: 90
+              port: 80
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /
-              port: 90
+              port: 80
             initialDelaySeconds: 20
             periodSeconds: 20
           resources:
@@ -48,5 +48,5 @@ spec:
   ports:
     - protocol: TCP
       port: 90
-      targetPort: 90
+      targetPort: 80
   type: ClusterIP
