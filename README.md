@@ -53,28 +53,49 @@ Clone the repository:
 ### Bash
 git clone https://github.com/lisagorewitdecker/Enterprise-Event-Driven-CRUD-Architecture.git
 cd Enterprise-Event-Driven-CRUD-Architecture
-Apply Kubernetes Manifests:
-Create the database credentials directly in the cluster before deploying. These commands generate random passwords; do not commit generated credentials to the repository.
+Build the application images using the tags referenced by the manifests. The client build creates the `dist` directory required by `client/Dockerfile`:
+
+### Bash
+cd client
+npm ci
+npm run build
+cd ..
+docker build -t my-app/server:v13 ./server
+docker build -t my-app/consumer:v14 ./consumer
+docker build -t client:latest ./client
+
+For Minikube, load the images into its image cache:
+
+### Bash
+minikube image load my-app/server:v13
+minikube image load my-app/consumer:v14
+minikube image load client:latest
+
+Docker Desktop Kubernetes can use images built by Docker directly. For another cluster, push these tags to a registry accessible to the cluster and update the image references in the corresponding manifests.
+
+Create the database credential directly in the cluster before deploying. This command generates a random password; do not commit generated credentials to the repository.
 
 ### Bash
 kubectl create secret generic app-secrets \
   --from-literal=mysql-root-password="$(openssl rand -base64 32)"
-kubectl create secret generic order-db-credentials \
-  --from-literal=MYSQL_USER=orders \
-  --from-literal=MYSQL_PASSWORD="$(openssl rand -base64 32)" \
-  --from-literal=MYSQL_ROOT_PASSWORD="$(openssl rand -base64 32)"
 
-Deploy the database, Kafka broker, backend services, and frontend to your local cluster:
+Deploy the numbered manifests, which are the supported set for this application. Do not apply `k8s/order-platform.yaml` with them:
 
 ### Bash
-kubectl apply -f k8s/
+kubectl apply -f k8s/01-mysql.yaml \
+  -f k8s/02-kafka.yaml \
+  -f k8s/03-server.yaml \
+  -f k8s/04-consumer.yaml \
+  -f k8s/05-client.yaml
+
 Verify Pods are Running:
 
 ### Bash
+kubectl rollout status deployment/mysql
 kubectl get pods
 Wait for MySQL, Zookeeper, Kafka, Server, Consumer, and Client to show Running.
 
-Initialize the database schema before using the application:
+Initialize the schema from `database/schema.sql` on a fresh database before using the application:
 
 ### Bash
 kubectl exec -i deployment/mysql -- sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" appdb' < database/schema.sql
@@ -83,7 +104,7 @@ kubectl exec -i deployment/mysql -- sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD"
 Port-forward the client service to your local machine:
 
 ### Bash
-kubectl port-forward svc/client-service 9090:90
+kubectl port-forward svc/client-service 9090:80
 Open your browser and navigate to http://localhost:9090
 
 ## 🧪 Usage Instructions
