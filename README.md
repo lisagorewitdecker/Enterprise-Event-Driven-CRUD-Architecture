@@ -74,6 +74,11 @@ Verify Pods are Running:
 kubectl get pods
 Wait for MySQL, Zookeeper, Kafka, Server, Consumer, and Client to show Running.
 
+Initialize the database schema before using the application:
+
+### Bash
+kubectl exec -i deployment/mysql -- sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" appdb' < database/schema.sql
+
 ## Access the Application:
 Port-forward the client service to your local machine:
 
