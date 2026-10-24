@@ -1,14 +1,4 @@
 apiVersion: v1
-kind: Secret
-metadata:
-  name: order-db-credentials
-type: Opaque
-stringData:
-  MYSQL_USER: orders
-  MYSQL_PASSWORD: replace-this-development-password
-  MYSQL_ROOT_PASSWORD: replace-this-root-password
----
-apiVersion: v1
 kind: ConfigMap
 metadata:
   name: order-platform-config
