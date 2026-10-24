@@ -78,7 +78,7 @@ Wait for MySQL, Zookeeper, Kafka, Server, Consumer, and Client to show Running.
 Port-forward the client service to your local machine:
 
 ### Bash
-kubectl port-forward svc/client-service 9090:80
+kubectl port-forward svc/client-service 9090:90
 Open your browser and navigate to http://localhost:9090
 
 ## 🧪 Usage Instructions
