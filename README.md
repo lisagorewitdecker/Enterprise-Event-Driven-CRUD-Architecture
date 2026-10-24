@@ -54,7 +54,17 @@ Clone the repository:
 git clone https://github.com/lisagorewitdecker/Enterprise-Event-Driven-CRUD-Architecture.git
 cd Enterprise-Event-Driven-CRUD-Architecture
 Apply Kubernetes Manifests:
-Deploy the database, Kafka broker, backend services, and frontend to your local cluster.
+Create the database credentials directly in the cluster before deploying. These commands generate random passwords; do not commit generated credentials to the repository.
+
+### Bash
+kubectl create secret generic app-secrets \
+  --from-literal=mysql-root-password="$(openssl rand -base64 32)"
+kubectl create secret generic order-db-credentials \
+  --from-literal=MYSQL_USER=orders \
+  --from-literal=MYSQL_PASSWORD="$(openssl rand -base64 32)" \
+  --from-literal=MYSQL_ROOT_PASSWORD="$(openssl rand -base64 32)"
+
+Deploy the database, Kafka broker, backend services, and frontend to your local cluster:
 
 ### Bash
 kubectl apply -f k8s/
