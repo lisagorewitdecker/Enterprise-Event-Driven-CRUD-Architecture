@@ -111,6 +111,21 @@ async function processOrder(order) {
         if (!failureTransitioned) {
             const [rows] = await pool.query('SELECT status FROM orders WHERE id = ?', [orderId]);
             if (rows.length === 0 || rows[0].status !== 'FAILED') return;
+        const [failureResult] = await pool.query(
+            'UPDATE orders SET status = "FAILED", failure_reason = ? WHERE id = ? AND status = "VALIDATING"',
+            [failureReason, orderId]
+        );
+        if (failureResult.affectedRows > 0) {
+            await pool.query(
+                'INSERT INTO order_events (order_id, from_status, to_status, event_note) VALUES (?, "VALIDATING", "FAILED", ?)',
+                [orderId, failureReason]
+            );
+        } else {
+            const [orders] = await pool.query(
+                'SELECT status FROM orders WHERE id = ?',
+                [orderId]
+            );
+            if (orders[0]?.status !== 'FAILED') return;
         }
 
         // Route message to Dead-Letter Queue (DLQ)
