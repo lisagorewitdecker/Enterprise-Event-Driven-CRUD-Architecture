@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 const INITIAL_FORM_DATA = {
   customer_name: '',
@@ -21,31 +21,49 @@ export default function App() {
   const [editingOrder, setEditingOrder] = useState(null);
   const [timeline, setTimeline] = useState([]);
   const [loadingTimeline, setLoadingTimeline] = useState(false);
+  const ordersRequestGeneration = useRef(0);
+  const ordersRequestPending = useRef(false);
 
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (skipIfPending = false) => {
+    if (skipIfPending && ordersRequestPending.current) return;
+    const requestGeneration = ++ordersRequestGeneration.current;
+    ordersRequestPending.current = true;
     setIsRefreshing(true);
     try {
       const res = await fetch('/api/orders');
       if (res.ok) {
         const data = await res.json();
-        setOrders(Array.isArray(data) ? data : []);
-        setIsConnected(true);
-      } else {
+        if (requestGeneration === ordersRequestGeneration.current) {
+          setOrders(Array.isArray(data) ? data : []);
+          setIsConnected(true);
+        }
+      } else if (requestGeneration === ordersRequestGeneration.current) {
         setIsConnected(false);
       }
     } catch (err) {
       console.error('API connection failed:', err);
-      setIsConnected(false);
+      if (requestGeneration === ordersRequestGeneration.current) {
+        setIsConnected(false);
+      }
     } finally {
-      setIsRefreshing(false);
+      if (requestGeneration === ordersRequestGeneration.current) {
+        ordersRequestPending.current = false;
+        setIsRefreshing(false);
+      }
     }
   }, []);
 
+  const invalidateOrdersRequests = () => {
+    ordersRequestGeneration.current += 1;
+    ordersRequestPending.current = false;
+    setIsRefreshing(false);
+  };
+
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 3000);
+    const interval = setInterval(() => fetchOrders(true), 3000);
     return () => clearInterval(interval);
   }, [fetchOrders]);
 
@@ -61,6 +79,8 @@ export default function App() {
         }),
       });
       if (res.ok) {
+        invalidateOrdersRequests();
+        setFormData({ customer_name: '', item_name: '', quantity: 1, total_amount: '', simulate_failure: false });
         setFormData({ ...INITIAL_FORM_DATA });
         fetchOrders();
       } else {
@@ -77,6 +97,7 @@ export default function App() {
     try {
       const res = await fetch(`/api/orders/${id}/cancel`, { method: 'POST' });
       if (res.ok) {
+        invalidateOrdersRequests();
         fetchOrders();
       } else {
         const data = await res.json().catch(() => ({}));
@@ -97,6 +118,7 @@ export default function App() {
         body: JSON.stringify(editingOrder),
       });
       if (res.ok) {
+        invalidateOrdersRequests();
         setEditingOrder(null);
         fetchOrders();
       } else {
@@ -113,6 +135,7 @@ export default function App() {
     try {
       const res = await fetch(`/api/orders/${id}`, { method: 'DELETE' });
       if (res.ok) {
+        invalidateOrdersRequests();
         setOrders((prev) => prev.filter((o) => o.id !== id));
       } else {
         const data = await res.json().catch(() => ({}));
@@ -134,7 +157,7 @@ export default function App() {
 
     for (let i = 0; i < items.length; i++) {
       try {
-        await fetch('/api/orders', {
+        const res = await fetch('/api/orders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -145,6 +168,9 @@ export default function App() {
             simulate_failure: i === 2,
           }),
         });
+        if (res.ok) {
+          invalidateOrdersRequests();
+        }
       } catch (err) {
         console.error('Burst error:', err);
       }
