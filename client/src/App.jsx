@@ -22,11 +22,14 @@ export default function App() {
   const [timeline, setTimeline] = useState([]);
   const [loadingTimeline, setLoadingTimeline] = useState(false);
   const ordersRequestGeneration = useRef(0);
+  const ordersRequestPending = useRef(false);
 
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (skipIfPending = false) => {
+    if (skipIfPending && ordersRequestPending.current) return;
     const requestGeneration = ++ordersRequestGeneration.current;
+    ordersRequestPending.current = true;
     setIsRefreshing(true);
     try {
       const res = await fetch('/api/orders');
@@ -46,6 +49,7 @@ export default function App() {
       }
     } finally {
       if (requestGeneration === ordersRequestGeneration.current) {
+        ordersRequestPending.current = false;
         setIsRefreshing(false);
       }
     }
@@ -53,12 +57,13 @@ export default function App() {
 
   const invalidateOrdersRequests = () => {
     ordersRequestGeneration.current += 1;
+    ordersRequestPending.current = false;
     setIsRefreshing(false);
   };
 
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 3000);
+    const interval = setInterval(() => fetchOrders(true), 3000);
     return () => clearInterval(interval);
   }, [fetchOrders]);
 
