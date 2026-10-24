@@ -1,5 +1,18 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
+const INITIAL_FORM_DATA = {
+  customer_name: '',
+  item_name: '',
+  quantity: 1,
+  total_amount: '',
+  simulate_failure: false,
+};
+
+const formatAmount = (amount) => {
+  const numericAmount = Number(amount);
+  return Number.isFinite(numericAmount) ? numericAmount.toFixed(2) : '0.00';
+};
+
 export default function App() {
   const [orders, setOrders] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
@@ -10,13 +23,7 @@ export default function App() {
   const [loadingTimeline, setLoadingTimeline] = useState(false);
   const ordersRequestGeneration = useRef(0);
 
-  const [formData, setFormData] = useState({
-    customer_name: '',
-    item_name: '',
-    quantity: 1,
-    total_amount: '',
-    simulate_failure: false,
-  });
+  const [formData, setFormData] = useState(INITIAL_FORM_DATA);
 
   const fetchOrders = useCallback(async () => {
     const requestGeneration = ++ordersRequestGeneration.current;
@@ -69,6 +76,7 @@ export default function App() {
       if (res.ok) {
         invalidateOrdersRequests();
         setFormData({ customer_name: '', item_name: '', quantity: 1, total_amount: '', simulate_failure: false });
+        setFormData({ ...INITIAL_FORM_DATA });
         fetchOrders();
       } else {
         const data = await res.json().catch(() => ({}));
@@ -187,7 +195,10 @@ export default function App() {
   const failedOrders = orders.filter(o => o.status === 'FAILED').length;
   const totalRevenue = orders
       .filter(o => o.status === 'FULFILLED')
-      .reduce((sum, order) => sum + parseFloat(order.total_amount || 0), 0)
+      .reduce((sum, order) => {
+        const amount = Number(order.total_amount);
+        return Number.isFinite(amount) ? sum + amount : sum;
+      }, 0)
       .toFixed(2);
 
   return (
@@ -259,32 +270,34 @@ export default function App() {
                 placeholder="Customer name *"
                 required
                 value={formData.customer_name}
-                onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
+                onChange={(e) => setFormData((current) => ({ ...current, customer_name: e.target.value }))}
                 style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px' }}
             />
             <input
                 placeholder="Item name *"
                 required
                 value={formData.item_name}
-                onChange={(e) => setFormData({ ...formData, item_name: e.target.value })}
+                onChange={(e) => setFormData((current) => ({ ...current, item_name: e.target.value }))}
                 style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px' }}
             />
             <input
                 type="number"
                 min="1"
+                step="1"
                 placeholder="Qty"
                 required
                 value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value, 10) || 1 })}
+                onChange={(e) => setFormData((current) => ({ ...current, quantity: parseInt(e.target.value, 10) || 1 }))}
                 style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px' }}
             />
             <input
                 type="number"
                 step="0.01"
+                min="0"
                 placeholder="Amount $"
                 required
                 value={formData.total_amount}
-                onChange={(e) => setFormData({ ...formData, total_amount: e.target.value })}
+                onChange={(e) => setFormData((current) => ({ ...current, total_amount: e.target.value }))}
                 style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px' }}
             />
           </div>
@@ -293,7 +306,7 @@ export default function App() {
               <input
                   type="checkbox"
                   checked={formData.simulate_failure}
-                  onChange={(e) => setFormData({ ...formData, simulate_failure: e.target.checked })}
+                  onChange={(e) => setFormData((current) => ({ ...current, simulate_failure: e.target.checked }))}
               />
               <strong>Simulate payment failure (Trigger Dead-Letter Queue)</strong>
             </label>
@@ -330,7 +343,7 @@ export default function App() {
                     </span>
                         </div>
                         <div style={{ fontSize: '14px', color: '#374151' }}>
-                          <strong>{order.customer_name}</strong> ordered <strong>{order.quantity}x {order.item_name}</strong> (${parseFloat(order.total_amount).toFixed(2)})
+                          <strong>{order.customer_name}</strong> ordered <strong>{order.quantity}x {order.item_name}</strong> (${formatAmount(order.total_amount)})
                         </div>
                         {order.failure_reason && (
                             <div style={{ fontSize: '13px', color: '#dc2626', marginTop: '4px' }}>
@@ -383,7 +396,7 @@ export default function App() {
                     <label style={{ display: 'block', fontSize: '13px', marginBottom: '4px' }}>Customer Name</label>
                     <input
                         value={editingOrder.customer_name}
-                        onChange={(e) => setEditingOrder({ ...editingOrder, customer_name: e.target.value })}
+                        onChange={(e) => setEditingOrder((current) => ({ ...current, customer_name: e.target.value }))}
                         style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '6px' }}
                     />
                   </div>
@@ -391,7 +404,7 @@ export default function App() {
                     <label style={{ display: 'block', fontSize: '13px', marginBottom: '4px' }}>Item Name</label>
                     <input
                         value={editingOrder.item_name}
-                        onChange={(e) => setEditingOrder({ ...editingOrder, item_name: e.target.value })}
+                        onChange={(e) => setEditingOrder((current) => ({ ...current, item_name: e.target.value }))}
                         style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '6px' }}
                     />
                   </div>
@@ -400,8 +413,10 @@ export default function App() {
                       <label style={{ display: 'block', fontSize: '13px', marginBottom: '4px' }}>Quantity</label>
                       <input
                           type="number"
+                          min="1"
+                          step="1"
                           value={editingOrder.quantity}
-                          onChange={(e) => setEditingOrder({ ...editingOrder, quantity: parseInt(e.target.value, 10) || 1 })}
+                          onChange={(e) => setEditingOrder((current) => ({ ...current, quantity: parseInt(e.target.value, 10) || 1 }))}
                           style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '6px' }}
                       />
                     </div>
@@ -409,7 +424,7 @@ export default function App() {
                       <label style={{ display: 'block', fontSize: '13px', marginBottom: '4px' }}>Status</label>
                       <select
                           value={editingOrder.status}
-                          onChange={(e) => setEditingOrder({ ...editingOrder, status: e.target.value })}
+                          onChange={(e) => setEditingOrder((current) => ({ ...current, status: e.target.value }))}
                           style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '6px' }}>
                         <option value="PENDING">PENDING</option>
                         <option value="VALIDATING">VALIDATING</option>
