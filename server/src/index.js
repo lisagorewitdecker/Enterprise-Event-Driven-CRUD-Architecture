@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { rateLimit } = require('express-rate-limit');
+const { randomBytes } = require('crypto');
 const mysql = require('mysql2/promise');
 const { Kafka, Partitioners } = require('kafkajs');
 
@@ -64,7 +65,7 @@ app.get('/api/orders', async (req, res) => {
 
 app.post('/api/orders', async (req, res) => {
   const { customer_name, item_name, quantity, total_amount, simulate_failure } = req.body;
-  const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
+  const orderNumber = `ORD-${randomBytes(12).toString('hex').toUpperCase()}`;
 
   try {
     const [result] = await pool.query(
