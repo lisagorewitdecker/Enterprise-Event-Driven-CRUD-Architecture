@@ -53,7 +53,7 @@ Clone the repository:
 ### Bash
 git clone https://github.com/lisagorewitdecker/Enterprise-Event-Driven-CRUD-Architecture.git
 cd Enterprise-Event-Driven-CRUD-Architecture
-Build the application images using the tags referenced by the manifests. The client build creates the `dist` directory required by `client/Dockerfile`:
+Build the application images using the tags referenced by the manifests. Before running these commands, install Node.js 22.12 or newer and npm locally. The client build creates the `dist` directory required by `client/Dockerfile`:
 
 ### Bash
 cd client
