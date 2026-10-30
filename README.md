@@ -92,6 +92,14 @@ Verify Pods are Running:
 
 ### Bash
 kubectl rollout status deployment/mysql
+kubectl exec deployment/mysql -- sh -c '
+  attempts=0
+  until mysql --protocol=TCP -h127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" appdb -e "SELECT 1"; do
+    attempts=$((attempts + 1))
+    [ "$attempts" -ge 60 ] && exit 1
+    sleep 2
+  done
+'
 kubectl get pods
 Wait for MySQL, Zookeeper, Kafka, Server, Consumer, and Client to show Running.
 
